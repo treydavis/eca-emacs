@@ -76,8 +76,8 @@
   "Keymap used by `eca-mcp-details-mode'.")
 
 (defun eca-mcp-details-buffer-name (session)
-  "Return the chat buffer name for SESSION."
-  (format  "<eca-mcp-details:%s>" (eca--session-id session)))
+  "Return the MCP details buffer name for SESSION."
+  (funcall eca-generate-buffer-name-function "eca-mcp-details" (eca--session-id session)))
 
 (defun eca-mcp--get-details-buffer (session)
   "Get the eca mcp buffer for SESSION."
