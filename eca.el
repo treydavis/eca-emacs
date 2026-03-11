@@ -96,13 +96,64 @@ Tries git info first, then package.el version, then file modification date."
   "Face for chat details in entries in eca-workspaces buffer."
   :group 'eca)
 
+(defcustom eca-buffer-name-format "<%n:%i>"
+  "The format string used to name ECA chat buffers.
+Different buffers have different contexts. Each may have
+a session, a session and chat or no session.
+
+The following %-sequences are supported:
+
+`%n' The type/name of the buffer. Ex: eca-chat, eca-mcp-details.
+
+`%s' The session ID. Empty string if no session.
+
+`%c' The chat ID. Empty string if no chat.
+
+`%i' Combination of session ID and chat ID. Just session
+     if no chat.
+
+`%t' The top-level directory of the working tree of the
+     repository.
+
+The value should always contain \"%n\" and \"%c\" to ensure
+unique buffer names per chat session.
+
+This is used by `eca-generate-buffer-name-default-function'.
+If another `eca-generate-buffer-name-function' is used, then
+it may not respect this option, or on the contrary it may
+support additional %-sequences."
+  :type 'string
+  :group 'eca)
+
+(defcustom eca-generate-buffer-name-function
+  #'eca-generate-buffer-name-default-function
+  "The function used to generate the name for an ECA chat buffer.
+The function is called with one argument, the SESSION, and must
+return a string to use as the buffer name."
+  :type `(radio (function-item ,#'eca-generate-buffer-name-default-function)
+                (function :tag "Function"))
+  :group 'eca)
+
+(defun eca-generate-buffer-name-default-function (mode session-id &optional chat-id)
+  "Generate a buffer name for SESSION-ID and optional CHAT-ID using `eca-buffer-name-format'."
+  (let* ((tl-dir (file-name-nondirectory
+                  (directory-file-name default-directory))))
+    (format-spec eca-buffer-name-format
+                 `((?n . ,mode)
+                   (?s . ,(or session-id ""))
+                   (?c . ,(or chat-id ""))
+                   (?i . ,(if (and session-id chat-id)
+                              (format "%s:%s" session-id chat-id)
+                            session-id))
+                   (?t . ,tl-dir)))))
+
 ;; Internal
 
 (defvar eca-workspaces-buffer-name "*eca-workspaces*")
 
 (defun eca--emacs-errors-buffer-name (session)
   "Return the Emacs errors buffer name for SESSION."
-  (format "<eca:emacs-errors:%s>" (eca--session-id session)))
+  (funcall eca-generate-buffer-name-function "eca:emacs-errors" (eca--session-id session)))
 
 (defun eca--log-error (session err &optional context)
   "Log error ERR to the Emacs errors buffer for SESSION.
@@ -138,6 +189,7 @@ when the error occurred."
     (when buffer
       (with-current-buffer buffer
         (rename-buffer (concat (buffer-name) ":closed") t)
+        (setq-local eca-chat--closed t)
         (setq-local mode-line-format '("*Closed session*"))
         (when-let ((win (get-buffer-window (current-buffer))))
           (quit-window nil win))
@@ -145,9 +197,7 @@ when the error occurred."
         (let ((current (current-buffer)))
           (dolist (b (buffer-list))
             (when (and (not (eq b current))
-                       (or
-                        (string-match-p "^<eca:emacs-errors:.*>:closed$" (buffer-name b))
-                        (string-match-p "^<eca:emacs-errors:.*>$" (buffer-name b))))
+                       (buffer-local-value 'eca-chat--closed b))
               (kill-buffer b))))))))
 
 (defun eca--get-message-type (json-data)

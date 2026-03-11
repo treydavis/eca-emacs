@@ -102,11 +102,11 @@ If current `gc-cons-threshold` is lower use that on filter server messages.'"
 
 (defun eca-process--buffer-name (session)
   "Return the process buffer name for SESSION."
-  (format  "<eca:%s>" (eca--session-id session)))
+  (funcall eca-generate-buffer-name-function "eca" (eca--session-id session)))
 
 (defun eca-process--stderr-buffer-name (session)
   "Return the stderr buffer name for SESSION."
-  (format  "<eca:stderr:%s>" (eca--session-id session)))
+  (funcall eca-generate-buffer-name-function "eca:stderr" (eca--session-id session)))
 
 (defvar eca-process--latest-server-version nil)
 
@@ -455,6 +455,7 @@ Call HANDLE-MSG for new msgs processed."
       (when stderr-buffer
         (with-current-buffer stderr-buffer
           (rename-buffer (concat (buffer-name) ":closed") t)
+          (setq-local eca-chat--closed t)
           (setq-local mode-line-format '("*Closed session*"))
           (when-let ((win (get-buffer-window (current-buffer))))
             (quit-window nil win))
@@ -462,9 +463,7 @@ Call HANDLE-MSG for new msgs processed."
           (let ((current (current-buffer)))
             (dolist (b (buffer-list))
               (when (and (not (eq b current))
-                         (or
-                          (string-match-p "^<eca:stderr:.*>:closed$" (buffer-name b))
-                          (string-match-p "^<eca:stderr:.*>$" (buffer-name b))))
+                         (buffer-local-value 'eca-chat--closed b))
                 (kill-buffer b)))))))))
 
 (defun eca-process-show-stderr (session)
