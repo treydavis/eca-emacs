@@ -112,15 +112,31 @@ the server independently of Emacs."
   "Face for chat details in entries in eca-workspaces buffer."
   :group 'eca)
 
+(defcustom eca-generate-buffer-name-function
+  #'eca-generate-buffer-name-default-function
+  "The function used to generate the name for an ECA buffer.
+The function is called with MODE (string), SESSION, and
+optional CHAT-ID, and must return a string to use as buffer name."
+  :type `(radio (function-item ,#'eca-generate-buffer-name-default-function)
+                (function :tag "Function"))
+  :group 'eca)
+
+(defun eca-generate-buffer-name-default-function (mode session &optional chat-id)
+  "Generate a buffer name for SESSION and optional CHAT-ID.
+MODE is a string describing the buffer type (e.g. eca-chat)."
+  (let* ((project-name (eca--session-project-name session))
+         (session-id (eca--session-id session)))
+    (if chat-id
+        (format "<%s[%s]:%s:%s>" mode project-name session-id chat-id)
+      (format "<%s[%s]:%s>" mode project-name session-id))))
+
 ;; Internal
 
 (defvar eca-workspaces-buffer-name "*eca-workspaces*")
 
 (defun eca--emacs-errors-buffer-name (session)
   "Return the Emacs errors buffer name for SESSION."
-  (format "<eca:emacs-errors[%s]:%s>"
-          (eca--session-project-name session)
-          (eca--session-id session)))
+  (funcall eca-generate-buffer-name-function "eca:emacs-errors" session))
 
 (defun eca--log-error (session err &optional context backtrace)
   "Log error ERR to the Emacs errors buffer for SESSION.
@@ -163,6 +179,7 @@ frames captured via `backtrace-get-frames'."
     (when buffer
       (with-current-buffer buffer
         (rename-buffer (concat (buffer-name) ":closed") t)
+        (setq-local eca-chat--closed t)
         (setq-local mode-line-format '("*Closed session*"))
         (when-let ((win (get-buffer-window (current-buffer))))
           (quit-window nil win))
@@ -170,9 +187,7 @@ frames captured via `backtrace-get-frames'."
         (let ((current (current-buffer)))
           (dolist (b (buffer-list))
             (when (and (not (eq b current))
-                       (or
-                        (string-match-p "^<eca:emacs-errors:.*>:closed$" (buffer-name b))
-                        (string-match-p "^<eca:emacs-errors:.*>$" (buffer-name b))))
+                       (buffer-local-value 'eca-chat--closed b))
               (kill-buffer b))))))))
 
 (defun eca--get-message-type (json-data)

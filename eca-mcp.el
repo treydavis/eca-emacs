@@ -76,6 +76,10 @@
     ('providers (eca-providers))
     ('global-config (eca-open-global-config))))
 
+(defun eca-mcp-details-buffer-name (session)
+  "Return the MCP details buffer name for SESSION."
+  (funcall eca-generate-buffer-name-function "eca-mcp-details" session))
+
 (defun eca-mcp-open-menu (&optional event)
   "Open a popup menu for MCP-related settings.
 With EVENT, show a mouse popup.  Without it, prompt in minibuffer."
