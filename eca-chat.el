@@ -514,7 +514,7 @@ Each task is a plist with :id, :content, :status, :priority, etc.")
 
 (defun eca-chat-new-buffer-name (session)
   "Return the chat buffer name for SESSION."
-  (format "<eca-chat:%s:%s>" (eca--session-id session) eca-chat--new-chat-id))
+  (funcall eca-generate-buffer-name-function "eca-chat" (eca--session-id session) eca-chat--new-chat-id))
 
 (defvar eca-chat-mode-map
   (let ((map (make-sparse-keymap)))
@@ -2739,7 +2739,7 @@ silently ignored."
                   ;; Cancel spinner timer if chat was still loading.
                   (eca-chat--spinner-stop)
                   (eca-chat--tool-call-elapsed-stop-all)
-                  (setq eca-chat--closed t)
+                  (setq-local eca-chat--closed t)
                   (force-mode-line-update)
                   (goto-char (point-max))
                   (rename-buffer (concat (buffer-name) ":closed") t)
@@ -2747,7 +2747,7 @@ silently ignored."
                   (let ((current (current-buffer)))
                     (dolist (b (buffer-list))
                       (when (and (not (eq b current))
-                                 (string-match-p "^<eca-chat:.*>:closed$" (buffer-name b)))
+                                 (buffer-local-value 'eca-chat--closed b))
                         (kill-buffer b))))
                   (when-let* ((window (get-buffer-window chat-buffer)))
                     (quit-window nil window))))))
