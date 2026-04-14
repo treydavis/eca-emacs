@@ -551,10 +551,6 @@ Used when server never responds to stop request.")
 (defvar eca--chat-init-session nil
   "Dynamically bound session during `eca-chat-mode' initialization.")
 
-(defun eca-chat-new-buffer-name (session)
-  "Return the chat buffer name for SESSION."
-  (funcall eca-generate-buffer-name-function "eca-chat" session eca-chat--new-chat-id))
-
 (defvar eca-chat-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map markdown-mode-map)
@@ -600,11 +596,11 @@ Used when server never responds to stop request.")
   (or (when-let (last-buff (eca--session-last-chat-buffer session))
         (when (buffer-live-p last-buff)
           last-buff))
-      (get-buffer (eca-chat-new-buffer-name session))))
+      (get-buffer (funcall eca-generate-buffer-name-function "eca-chat" session eca-chat--new-chat-id))))
 
 (defun eca-chat--create-buffer (session)
   "Create the eca chat buffer for SESSION."
-  (get-buffer-create (generate-new-buffer-name (eca-chat-new-buffer-name session))))
+  (get-buffer-create (generate-new-buffer-name (funcall eca-generate-buffer-name-function "eca-chat" session eca-chat--new-chat-id))))
 
 (defun eca-chat--get-chat-buffer (session chat-id)
   "Get chat buffer for SESSION and CHAT-ID."

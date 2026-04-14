@@ -134,16 +134,12 @@ MODE is a string describing the buffer type (e.g. eca-chat)."
 
 (defvar eca-workspaces-buffer-name "*eca-workspaces*")
 
-(defun eca--emacs-errors-buffer-name (session)
-  "Return the Emacs errors buffer name for SESSION."
-  (funcall eca-generate-buffer-name-function "eca:emacs-errors" session))
-
 (defun eca--log-error (session err &optional context backtrace)
   "Log error ERR to the Emacs errors buffer for SESSION.
 Optional CONTEXT is a string describing what was happening
 when the error occurred.  Optional BACKTRACE is a list of
 frames captured via `backtrace-get-frames'."
-  (let ((buffer (get-buffer-create (eca--emacs-errors-buffer-name session))))
+  (let ((buffer (get-buffer-create (funcall eca-generate-buffer-name-function "eca:emacs-errors" session))))
     (with-current-buffer buffer
       (goto-char (point-max))
       (insert (format "[%s] %s%s\n"
@@ -159,7 +155,7 @@ frames captured via `backtrace-get-frames'."
 
 (defun eca-show-emacs-errors (session)
   "Open the Emacs errors buffer for SESSION."
-  (let ((buffer (get-buffer (eca--emacs-errors-buffer-name session))))
+  (let ((buffer (get-buffer (funcall eca-generate-buffer-name-function "eca:emacs-errors" session))))
     (if buffer
         (with-current-buffer buffer
           (if (window-live-p (get-buffer-window (buffer-name)))
@@ -175,7 +171,7 @@ frames captured via `backtrace-get-frames'."
 
 (defun eca--emacs-errors-exit (session)
   "Clean up the Emacs errors buffer for SESSION on stop."
-  (let ((buffer (get-buffer (eca--emacs-errors-buffer-name session))))
+  (let ((buffer (get-buffer (funcall eca-generate-buffer-name-function "eca:emacs-errors" session))))
     (when buffer
       (with-current-buffer buffer
         (rename-buffer (concat (buffer-name) ":closed") t)
@@ -368,7 +364,7 @@ backtrace.  On older Emacs, runs BODY without capture."
   "Connect in eca nrepl port for development."
   (interactive)
   (eca-assert-session-running (eca-session))
-  (with-current-buffer (eca-process--stderr-buffer-name (eca-session))
+  (with-current-buffer (funcall eca-generate-buffer-name-function "eca:stderr" (eca-session))
     (save-excursion
       (goto-char (point-min))
       (when (re-search-forward "started on port \\([0-9]+\\)" nil t)
