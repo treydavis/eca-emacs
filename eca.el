@@ -115,24 +115,29 @@ the server independently of Emacs."
 (defcustom eca-generate-buffer-name-function
   #'eca-generate-buffer-name-default-function
   "The function used to generate the name for an ECA buffer.
-The function is called with MODE (string), SESSION, and
+The function is called with MODE (string), optional SESSION, and
 optional CHAT-ID, and must return a string to use as buffer name."
   :type `(radio (function-item ,#'eca-generate-buffer-name-default-function)
                 (function :tag "Function"))
   :group 'eca)
 
-(defun eca-generate-buffer-name-default-function (mode session &optional chat-id)
-  "Generate a buffer name for SESSION and optional CHAT-ID.
+(defun eca-generate-buffer-name-default-function (mode &optional session chat-id)
+  "Generate a buffer name for optional SESSION and optional CHAT-ID.
 MODE is a string describing the buffer type (e.g. eca-chat)."
-  (let* ((project-name (eca--session-project-name session))
-         (session-id (eca--session-id session)))
-    (if chat-id
-        (format "<%s[%s]:%s:%s>" mode project-name session-id chat-id)
-      (format "<%s[%s]:%s>" mode project-name session-id))))
+  (cond
+   ((null session)
+    (format "<%s>" mode))
+   (chat-id
+    (format "<%s[%s]:%s:%s>" mode
+            (eca--session-project-name session)
+            (eca--session-id session)
+            chat-id))
+   (t
+    (format "<%s[%s]:%s>" mode
+            (eca--session-project-name session)
+            (eca--session-id session)))))
 
 ;; Internal
-
-(defvar eca-workspaces-buffer-name "*eca-workspaces*")
 
 (defun eca--log-error (session err &optional context backtrace)
   "Log error ERR to the Emacs errors buffer for SESSION.
@@ -466,13 +471,14 @@ When ARG is current prefix, ask for workspace roots to use."
       (seq-doseq (chat-by-id (eca--session-chats session))
         (when (buffer-live-p (cdr chat-by-id))
           (hierarchy-add-tree h (cdr chat-by-id) parent-fn))))
-    (let ((b (or (when-let ((b (get-buffer eca-workspaces-buffer-name)))
-                   (when (buffer-live-p b)
-                     (with-current-buffer b
-                       (let ((inhibit-read-only t))
-                         (erase-buffer))))
-                   b)
-                 (generate-new-buffer eca-workspaces-buffer-name))))
+    (let* ((buffer-name (funcall eca-generate-buffer-name-function "eca-workspaces"))
+           (b (or (when-let ((b (get-buffer buffer-name)))
+                    (when (buffer-live-p b)
+                      (with-current-buffer b
+                        (let ((inhibit-read-only t))
+                          (erase-buffer))))
+                    b)
+                  (generate-new-buffer buffer-name))))
       (with-current-buffer b
         (setq-local tree-widget-image-enable nil)
         (widget-create (eca--tree-widget-open-all
